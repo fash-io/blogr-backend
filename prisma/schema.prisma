@@ -1,0 +1,243 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String
+  email     String     @unique
+  username  String     @unique
+  password  String
+  status    UserStatus @default(ACTIVE)
+  banExpiry DateTime?
+
+  emailVerified    Boolean   @default(false)
+  emailToken       String?
+  emailTokenExpiry DateTime?
+
+  refreshToken     String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  bookmarks     Bookmark[]
+  profile       Profile?
+  notifications Notification[]
+  apiKey        ApiKey?
+  views         View[]
+  userBadges    UserBadge[]
+  reactions     Reaction[]
+
+  following Follow[] @relation("following")
+  followers Follow[] @relation("followers")
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+enum UserStatus {
+  BANNED
+  ACTIVE
+  INACTIVE
+}
+
+model Follow {
+  id String @id @default(cuid())
+
+  followerId  String
+  followingId String
+
+  follower  User @relation("following", fields: [followerId], references: [id])
+  following User @relation("followers", fields: [followingId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  bio       String?
+  about     String?
+  website   String?
+  linkedIn  String?
+  github    String?
+  gender    Gender?
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String
+  icon        String?
+  createdAt   DateTime    @default(now())
+  UserBadge   UserBadge[]
+}
+
+model UserBadge {
+  id      String @id @default(cuid())
+  userId  String
+  badgeId String
+
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Post {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  title     String
+  excerpt   String?
+  content   String
+  thumbnail String?
+  image     String?
+  authorId  String
+  ttr       Int     @default(1)
+
+  status    PostStatus @default(DRAFT)
+  author    User       @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+  likes     Like[]
+  reactions Reaction[]
+  bookmarks Bookmark[]
+  tags      Tag[]
+  views     View[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Reaction {
+  id        String       @id @default(cuid())
+  type      ReactionType
+  userId    String
+  postId    String
+  createdAt DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId, type])
+}
+
+enum ReactionType {
+  LIKE
+  LOVE
+  LAUGH
+  WOW
+  SAD
+  ANGRY
+}
+
+model View {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String?
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  likes     Like[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id])
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  about     String?
+  name      String
+  posts     Post[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  POST
+  FOLLOW
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
